@@ -5,7 +5,8 @@ import math
 
 import numpy as np
 import scipy.linalg
-import scipy.optimize.optimize
+from .optimize import (_check_unknown_options, wrap_function, _status_message,
+                      Result)
 
 __all__ = []
 
@@ -99,25 +100,11 @@ def _help_solve_subproblem(z, d, trust_radius):
     return ta, tb
 
 
-# This function provides an interface
-# modeled on scipy.optimize._minimize_newtoncg().
-def _minimize_trust_region(
-        fun,
-        x0,
-        args=(),
-        jac=None,
-        hess=None,
-        hessp=None,
-        solve_subproblem=None,
-        initial_trust_radius=1.0,
-        max_trust_radius=1000.0,
-        eta=0.15,
-        gtol=1e-4,
-        maxiter=None,
-        disp=False,
-        return_all=False,
-        callback=None,
-        **unknown_options):
+def _minimize_trust_region(fun, x0, args=(), jac=None, hess=None, hessp=None,
+                           solve_subproblem=None, initial_trust_radius=1.0,
+                           max_trust_radius=1000.0, eta=0.15, gtol=1e-4,
+                           maxiter=None, disp=False, return_all=False,
+                           callback=None, **unknown_options):
     """
     Minimization of scalar function of one or more variables using a
     trust-region algorithm.
@@ -140,18 +127,16 @@ def _minimize_trust_region(
     This function is called by the `minimize` function.
     It is not supposed to be called directly.
     """
-    scipy.optimize.optimize._check_unknown_options(unknown_options)
+    _check_unknown_options(unknown_options)
     if jac is None:
-        raise ValueError(
-                'Jacobian is currently required for trust-region methods')
+        raise ValueError('Jacobian is currently required for trust-region '
+                         'methods')
     if hess is None and hessp is None:
-        raise ValueError(
-                'Either the Hessian or the Hessian-vector product '
-                'is currently required for trust-region methods')
+        raise ValueError('Either the Hessian or the Hessian-vector product '
+                         'is currently required for trust-region methods')
     if solve_subproblem is None:
-        raise ValueError(
-                'A subproblem solving strategy '
-                'is required for trust-region methods')
+        raise ValueError('A subproblem solving strategy is required for '
+                         'trust-region methods')
     if not (0 <= eta < 0.25):
         raise Exception('invalid acceptance stringency')
     if max_trust_radius <= 0:
@@ -159,9 +144,8 @@ def _minimize_trust_region(
     if initial_trust_radius <= 0:
         raise ValueError('the initial trust radius must be positive')
     if initial_trust_radius >= max_trust_radius:
-        raise ValueError(
-                'the initial trust radius '
-                'must be less than the max trust radius')
+        raise ValueError('the initial trust radius must be less than the '
+                         'max trust radius')
 
     # force the initial guess into a nice format
     x0 = np.asarray(x0).flatten()
@@ -169,10 +153,10 @@ def _minimize_trust_region(
     # Wrap the functions, for a couple reasons.
     # This tracks how many times they have been called
     # and it automatically passes the args.
-    nfun, fun = scipy.optimize.optimize.wrap_function(fun, args)
-    njac, jac = scipy.optimize.optimize.wrap_function(jac, args)
-    nhess, hess = scipy.optimize.optimize.wrap_function(hess, args)
-    nhessp, hessp = scipy.optimize.optimize.wrap_function(hessp, args)
+    nfun, fun = wrap_function(fun, args)
+    njac, jac = wrap_function(jac, args)
+    nhess, hess = wrap_function(hess, args)
+    nhessp, hessp = wrap_function(hessp, args)
 
     # limit the number of iterations
     if maxiter is None:
@@ -247,8 +231,8 @@ def _minimize_trust_region(
 
     # print some stuff if requested
     status_messages = (
-            scipy.optimize.optimize._status_message['success'],
-            scipy.optimize.optimize._status_message['maxiter'],
+            _status_message['success'],
+            _status_message['maxiter'],
             'A bad approximation caused failure to predict improvement.',
             'A linalg error occurred, such as a non-psd Hessian.',
             )
@@ -263,12 +247,9 @@ def _minimize_trust_region(
         print("         Gradient evaluations: %d" % njac[0])
         print("         Hessian evaluations: %d" % nhess[0])
 
-    result = scipy.optimize.optimize.Result(
-            x=x, success=(warnflag==0), status=warnflag,
-            fun=m(), jac=m.jac(),
-            nfev=nfun[0], njev=njac[0], nhev=nhess[0],
-            nit=k,
-            )
+    result = Result(x=x, success=(warnflag==0), status=warnflag, fun=m(),
+                    jac=m.jac(), nfev=nfun[0], njev=njac[0], nhev=nhess[0],
+                    nit=k, message=status_messages[warnflag])
 
     if hess is not None:
         result['hess'] = m.hess()
