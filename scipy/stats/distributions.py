@@ -7383,6 +7383,13 @@ class hypergeom_gen(rv_discrete):
             res.append(np.sum(self._pmf(k2, tot, good, draw)))
         return np.asarray(res)
 
+    def _cdf(self, k, M, n, N):
+        res = []
+        for quant, tot, good, draw in zip(k, M, n, N):
+            k2 = np.arange(quant + 1, draw + 1)
+            res.append(1 - np.sum(self._pmf(k2, tot, good, draw)))
+        return np.asarray(res)
+
 hypergeom = hypergeom_gen(name='hypergeom', shapes="M, n, N")
 
 

@@ -296,6 +296,18 @@ class TestHypergeom(TestCase):
         expected2 = [1, 0.1237904, 6.511452e-34, 3.277667e-69]
         assert_allclose(res2, expected2, atol=0, rtol=5e-7)
 
+    def test_cdf_less_extreme(self):
+        # Related to github issue 2238 migrated from trac issue 1719.
+        expected = 1 - stats.hypergeom.cdf(20, 13397950, 4363, 9260)
+        observed = 1.2289025689799385e-11
+        assert_allclose(expected, observed)
+
+    def test_cdf_more_extreme(self):
+        # Related to github issue 2238 migrated from trac issue 1719.
+        expected = 1 - stats.hypergeom.cdf(30, 13397950, 4363, 12390)
+        observed = 0
+        assert_allclose(expected, observed)
+
 
 class TestLogser(TestCase):
     def test_rvs(self):
