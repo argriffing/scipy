@@ -12,9 +12,10 @@ from scipy.linalg._matfuncs_sqrtm import SqrtmError, _sqrtm_triu
 from scipy.linalg.decomp_schur import schur, rsf2csf
 from scipy.linalg.special_matrices import all_mat
 from scipy.linalg.matfuncs import funm
-from scipy.linalg import svdvals, solve_triangular
+from scipy.linalg import eigh, svdvals, solve_triangular
 from scipy.sparse.linalg.interface import LinearOperator
 from scipy.sparse.linalg import onenormest
+from scipy.special import p_roots
 
 
 __all__ = ['logm', 'fractional_matrix_power']
@@ -28,14 +29,50 @@ class FractionalMatrixPowerError(np.linalg.LinAlgError):
     pass
 
 
-def _hacked_leggauss(m):
-    # remove this if/when it is fixed in numpy
-    if m == 1:
-        nodes = np.array([0], dtype=float)
-        weights = np.array([2], dtype=float)
-    else:
-        nodes, weights = np.polynomial.legendre.leggauss(m)
-    return nodes, weights
+#TODO replace this when scipy supports np.polynomial.legendre.leggauss().
+def _golub_welsch(m):
+    """
+    Golub-Welsch algorithm for Gauss-Legendre quadrature.
+
+    Parameters
+    ----------
+    m : positive integer
+        The order of the quadrature.
+
+    Returns
+    -------
+    nodes : 1d array of floats
+        Quadrature nodes.
+    weights : 1d array of floats
+        Quadrature weights.
+
+    References
+    ----------
+    .. [1] G. H. Golub and J. A. Welsch,
+           "Calculation of Gauss quadrature rules"
+           Math. Comp. 23 (1969), 221-230
+
+    """
+    if int(m) != m:
+        raise TypeError('expected an integer order')
+    if m < 1:
+        raise ValueError('expected a positive order')
+
+    # Construct the symmetric tridiagonal Jacobi matrix.
+    beta = 0.5 / np.sqrt(1 - (2*np.arange(1, m, dtype=float))**-2)
+    J = np.diag(beta, 1) + np.diag(beta, -1)
+
+    # Get the nodes and weights from the symmetric eigendecomposition.
+    nodes, V = eigh(J)
+    weights = 2*V[:, 0]**2
+    #return nodes, weights
+
+    #if m == 1:
+        #return np.array([0]), np.array([2])
+    #else:
+        #return np.polynomial.legendre.leggauss(m)
+
+    return p_roots(m)
 
 
 def _has_complex_dtype_char(A):
@@ -806,7 +843,7 @@ def _logm_triu(T):
     # corresponding to degree-m Gauss-Legendre quadrature.
     # These quadrature arrays need to be transformed from the [-1, 1] interval
     # to the [0, 1] interval.
-    nodes, weights = _hacked_leggauss(m)
+    nodes, weights = _golub_welsch(m)
     if nodes.shape != (m,) or weights.shape != (m,):
         raise Exception('internal error')
     nodes = 0.5 + 0.5 * nodes

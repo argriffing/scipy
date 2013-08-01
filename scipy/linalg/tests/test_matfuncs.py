@@ -201,6 +201,17 @@ class TestLogM(TestCase):
             A_logm, info = logm(A, disp=False)
             assert_(A_logm.dtype.char in complex_dtype_chars)
 
+    def test_logm_golub_welsch(self):
+        # Test Golub-Welsch for m=1, m=2, m=3.
+        # This is used in the Pade approximation of a matrix logarithm.
+        for m, desired_nodes, desired_weights in (
+                (1, [0], [2]),
+                (2, [-np.sqrt(3)/3, np.sqrt(3)/3], [1, 1]),
+                (3, [-np.sqrt(3/5), 0, np.sqrt(3/5)], [5/9, 8/9, 5/9])):
+            actual_nodes, actual_weights = _matfuncs_inv_ssq._golub_welsch(m)
+            assert_allclose(actual_nodes, desired_nodes)
+            assert_allclose(actual_weights, desired_weights)
+
 
 class TestSqrtM(TestCase):
     def test_round_trip_random_float(self):
