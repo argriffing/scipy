@@ -142,6 +142,8 @@ class-based FITPACK interface as ``UnivariateSpline.derivative`` and
 Distributions now allow using keyword parameters in addition to
 positional parameters in all methods.
 
+A new class `scipy.stats.multivariate_normal` with functionality for 
+multivariate normal random variables has been added.
 
 Deprecated features
 ===================

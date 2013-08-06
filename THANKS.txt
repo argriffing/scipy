@@ -120,7 +120,7 @@ Alex Griffing for expm 2009, expm_multiply, expm_frechet,
     implementations, plus bugfixes.
 Nils Werner for signal windowing and wavfile-writing improvements.
 Kenneth L. Ho for the wrapper around the Interpolative Decomposition code.
-
+Joris Vankerschaver for multivariate Gaussian functionality.
 
 Institutions
 ------------
