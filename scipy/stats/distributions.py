@@ -4652,6 +4652,15 @@ loglaplace = loglaplace_gen(a=0.0, name='loglaplace')
 
 
 def _lognorm_logpdf(x, s):
+    #print(x, repr(x))
+    #xnz = np.ma.masked_where(x==0, x)
+    #print(xnz, repr(xnz))
+    #wat = log(xnz)
+    #a = -log(xnz)**2 / (2*s**2)
+    #b = -log(s*xnz*sqrt(2*pi))
+    #ynz = a + b
+    #ynz = -log(xnz)**2 / (2*s**2) - log(s*xnz*sqrt(2*pi))
+    #return ynz.filled(-np.inf)
     return -log(x)**2 / (2*s**2) + np.where(x == 0, 0, -log(s*x*sqrt(2*pi)))
 
 
