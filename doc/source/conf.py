@@ -18,7 +18,7 @@ needs_sphinx = '1.1'
 
 sys.path.insert(0, os.path.abspath('../sphinxext'))
 
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.pngmath', 'numpydoc',
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.mathjax', 'numpydoc',
               'sphinx.ext.intersphinx', 'sphinx.ext.coverage',
               'sphinx.ext.autosummary']
 
@@ -140,8 +140,8 @@ html_file_suffix = '.html'
 
 htmlhelp_basename = 'scipy'
 
-pngmath_use_preview = True
-pngmath_dvipng_args = ['-gamma', '1.5', '-D', '96', '-bg', 'Transparent']
+#pngmath_use_preview = True
+#pngmath_dvipng_args = ['-gamma', '1.5', '-D', '96', '-bg', 'Transparent']
 
 
 # -----------------------------------------------------------------------------
