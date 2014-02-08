@@ -1092,18 +1092,17 @@ class _TestCommon:
 
     def test_rmatvec(self):
         M = self.spmatrix(matrix([[3,0,0],[0,1,0],[2,0,3.0],[2,3,0]]))
-        assert_array_almost_equal([1,2,3,4]*M, dot([1,2,3,4], M.toarray()))
+        assert_array_almost_equal([1,2,3,4]*M, dot([1,2,3,4], M.todense()))
         row = matrix([[1,2,3,4]])
         assert_array_almost_equal(row*M, row*M.todense())
 
     def test_small_multiplication(self):
         # test that A*x works for x with shape () (1,) and (1,1)
         A = self.spmatrix([[1],[2],[3]])
-
         assert_(isspmatrix(A * array(1)))
-        assert_equal((A * array(1)).todense(), [[1],[2],[3]])
-        assert_equal(A * array([1]), array([1,2,3]))
-        assert_equal(A * array([[1]]), array([[1],[2],[3]]))
+        for v in 1, [1], [[1]]:
+            v = array(v)
+            yield assert_equal, (A * v).todense(), A.todense() * v
 
     def test_multiply_custom(self):
         A = self.spmatrix([[1], [2], [3]])
@@ -1117,9 +1116,8 @@ class _TestCommon:
         assert_array_almost_equal(M * col, M.todense() * col)
 
         # check result dimensions (ticket #514)
-        assert_equal((M * array([1,2,3])).shape,(4,))
-        assert_equal((M * array([[1],[2],[3]])).shape,(4,1))
-        assert_equal((M * matrix([[1],[2],[3]])).shape,(4,1))
+        for b in array([1,2,3]), array([[1],[2],[3]]), array([[1],[2],[3]]):
+            yield assert_equal, (M * b).shape, (4,1)
 
         # check result type
         assert_(isinstance(M * array([1,2,3]), ndarray))
@@ -1731,7 +1729,7 @@ class _TestSolve:
         A = zeros((n,n), dtype=complex)
         x = np.random.rand(n)
         y = np.random.rand(n-1)+1j*np.random.rand(n-1)
-        r = np.random.rand(n)
+        r = np.random.rand(n, 1)
         for i in range(len(x)):
             A[i,i] = x[i]
         for i in range(len(y)):

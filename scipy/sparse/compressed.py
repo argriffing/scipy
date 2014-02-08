@@ -496,6 +496,9 @@ class _cs_matrix(_data_matrix, _minmax_mixin, IndexMixin):
         fn = getattr(sparsetools,self.format + '_matvec')
         fn(M, N, self.indptr, self.indices, self.data, other, result)
 
+        # numpy.matrix compatibility
+        result = result.reshape((M, 1))
+
         return result
 
     def _mul_multivector(self, other):
