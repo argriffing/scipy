@@ -182,6 +182,11 @@ class TestInterp1D(object):
         assert_array_almost_equal(interp10_y_2d(self.x10),
                                   interp10_y_2d_unsorted(self.x10))
 
+    def test_sorted_inplace_take(self):
+        # TODO github bug here
+        x = np.array([])
+        y = np.array([70, 80, 60, 30, 90, 0, 50, 10, 20, 40])
+
     def test_linear(self):
         # Check the actual implementation of linear interpolation.
         interp10 = interp1d(self.x10, self.y10)
