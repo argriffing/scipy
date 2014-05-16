@@ -23,8 +23,12 @@ def _exact_inf_norm(A):
 def _exact_1_norm(A):
     # A compatibility function which should eventually disappear.
     if scipy.sparse.isspmatrix(A):
+        if np.any(np.isnan(A.A)):
+            raise Exception(A)
         return max(abs(A).sum(axis=0).flat)
     else:
+        if np.any(np.isnan(A)):
+            raise Exception(A)
         return np.linalg.norm(A, 1)
 
 

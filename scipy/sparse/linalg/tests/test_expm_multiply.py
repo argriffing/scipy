@@ -86,7 +86,8 @@ class TestExpmActionSimple(TestCase):
         np.random.seed(1234)
         n = 40
         k = 3
-        nsamples = 10
+        #TODO nsamples 10
+        nsamples = 1000
         for i in range(nsamples):
             for t in (0.2, 1.0, 1.5):
                 A = scipy.linalg.inv(np.random.randn(n, n))
