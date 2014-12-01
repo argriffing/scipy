@@ -2085,6 +2085,16 @@ class TestNdimage:
         assert_array_almost_equal(out1, numpy.array([[1, 2], [1, 2]]))
         assert_array_almost_equal(out2, numpy.array([[1, 1, 2, 2]]))
 
+    def test_zoom_with_mangled_strides(self):
+        # https://github.com/scipy/scipy/issues/4197
+        err = numpy.seterr(invalid='ignore')
+        arr = numpy.array([[1, 2]])
+        try:
+            out1 = ndimage.zoom(arr, (2, 1))
+        finally:
+            numpy.seterr(**err)
+        assert_array_almost_equal(out1, numpy.array([[1, 2], [1, 2]]))
+
     def test_zoom_affine01(self):
         data = [[1, 2, 3, 4],
                 [5, 6, 7, 8],
