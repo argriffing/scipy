@@ -24,6 +24,11 @@ __all__ = ['linprog', 'linprog_verbose_callback', 'linprog_terse_callback']
 
 __docformat__ = "restructuredtext en"
 
+#TODO remove this
+class FirstPhaseException(Exception):
+    def __init__(self, status):
+        self.status = status
+
 
 def linprog_verbose_callback(xk, **kwargs):
     """
@@ -206,7 +211,14 @@ def _pivot_row(T, pivcol, phase, tol=1.0E-12):
         return False, np.nan
     mb = np.ma.masked_where(T[:-k, pivcol] <= tol, T[:-k, -1], copy=False)
     q = mb / ma
-    return True, np.ma.where(q == q.min())[0][0]
+    try:
+        return True, np.ma.where(q == q.min())[0][0]
+    except IndexError as e:
+        print(repr(mb))
+        print(repr(ma))
+        print(repr(q))
+        print(repr(q.min()))
+        raise
 
 
 def _solve_simplex(T, n, basis, maxiter=1000, phase=2, callback=None,
@@ -727,6 +739,14 @@ def _linprog_simplex(c, A_ub=None, b_ub=None, A_eq=None, b_eq=None,
 
     nit1, status = _solve_simplex(T, n, basis, phase=1, callback=callback,
                                   maxiter=maxiter, tol=tol, bland=bland)
+
+
+
+    # XXX
+    # Add some checks for weirdnesses in the first phase
+    #raise FirstPhaseException(status)
+
+
 
     # if pseudo objective is zero, remove the last row from the tableau and
     # proceed to phase 2
