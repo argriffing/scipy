@@ -9,7 +9,7 @@ import warnings
 import numpy as np
 
 from numpy.testing import (TestCase, assert_equal, assert_array_equal,
-     assert_, assert_allclose, assert_raises, run_module_suite)
+     assert_, assert_allclose, assert_raises, run_module_suite, assert_warns)
 
 from numpy import zeros, arange, array, abs, max, ones, eye, iscomplexobj
 from scipy.linalg import norm
@@ -253,6 +253,7 @@ def test_gmres_basic():
     x = np.linalg.solve(A, b)
 
     x_gm, err = gmres(A, b, restart=5, maxiter=1)
+    assert_warns(DeprecationWarning, gmres, A, b, restrt=5, maxiter=1)
 
     assert_allclose(x_gm[0], 0.359, rtol=1e-2)
 
