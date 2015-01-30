@@ -37,6 +37,7 @@ functions. Use ``pdist`` for this purpose.
 .. autosummary::
    :toctree: generated/
 
+   aitchison        -- the Aitchison distance.
    braycurtis       -- the Bray-Curtis distance.
    canberra         -- the Canberra distance.
    chebyshev        -- the Chebyshev distance.
@@ -568,6 +569,31 @@ def chebyshev(u, v):
     u = _validate_vector(u)
     v = _validate_vector(v)
     return max(abs(u - v))
+
+
+def aitchison(u, v):
+    """
+    Computes the Aitchison distance between two vectors in simplex space.
+
+    Parameters
+    ----------
+    u : (N, ) array_like
+        An array of positive numbers that should sum to 1.
+    v : (N, ) array_like
+        An array of positive numbers that should sum to 1.
+
+    Returns
+    -------
+    aitchison : float
+        The Aitchison distance between 1-D arrays `u` and `v`.
+
+    """
+    lx = np.log(x)
+    ly = np.log(y)
+    lgx = np.mean(lx, axis=-1)
+    lgy = np.mean(ly, axis=-1)
+    diff = (lx - lgx) - (ly - lgy)
+    return np.sqrt(np.sum(diff*diff))
 
 
 def braycurtis(u, v):
@@ -1105,7 +1131,12 @@ def pdist(X, metric='euclidean', p=2, w=None, V=None, VI=None):
        Computes the weighted Minkowski distance between each pair of
        vectors. (see wminkowski function documentation)
 
-    23. ``Y = pdist(X, f)``
+    23. ``Y = pdist(X, 'aitchison')``
+
+       Computes the Aitchison distance between each pair of
+       vectors. (see aitchison function documentation)
+
+    24. ``Y = pdist(X, f)``
 
        Computes the distance between all pairs of vectors in X
        using the user supplied 2-arity function f. For example,
@@ -1134,7 +1165,7 @@ def pdist(X, metric='euclidean', p=2, w=None, V=None, VI=None):
         n-dimensional space.
     metric : string or function
         The distance metric to use. The distance function can
-        be 'braycurtis', 'canberra', 'chebyshev', 'cityblock',
+        be 'aitchison', 'braycurtis', 'canberra', 'chebyshev', 'cityblock',
         'correlation', 'cosine', 'dice', 'euclidean', 'hamming',
         'jaccard', 'kulsinski', 'mahalanobis', 'matching',
         'minkowski', 'rogerstanimoto', 'russellrao', 'seuclidean',
@@ -1297,6 +1328,8 @@ def pdist(X, metric='euclidean', p=2, w=None, V=None, VI=None):
                                                   VI, dm)
         elif mstr == 'canberra':
             _distance_wrap.pdist_canberra_wrap(_convert_to_double(X), dm)
+        elif mstr == 'aitchison':
+            _distance_wrap.pdist_aitchison_wrap(_convert_to_double(X), dm)
         elif mstr == 'braycurtis':
             _distance_wrap.pdist_bray_curtis_wrap(_convert_to_double(X), dm)
         elif mstr == 'yule':
@@ -1325,6 +1358,8 @@ def pdist(X, metric='euclidean', p=2, w=None, V=None, VI=None):
             else:
                 V = np.asarray(V, order='c')
             dm = pdist(X, lambda u, v: seuclidean(u, v, V))
+        elif metric == 'test_aitchison':
+            dm = pdist(X, aitchison)
         elif metric == 'test_braycurtis':
             dm = pdist(X, braycurtis)
         elif metric == 'test_mahalanobis':
@@ -1900,7 +1935,12 @@ def cdist(XA, XB, metric='euclidean', p=2, V=None, VI=None, w=None):
        Computes the weighted Minkowski distance between the
        vectors. (see `wminkowski` function documentation)
 
-    23. ``Y = cdist(XA, XB, f)``
+    23. ``Y = cdist(XA, XB, 'aitchison')``
+
+       Computes the Aitchison distance between the
+       vectors. (see `aitchison` function documentation)
+
+    24. ``Y = cdist(XA, XB, f)``
 
        Computes the distance between all pairs of vectors in X
        using the user supplied 2-arity function f. For example,
@@ -2150,6 +2190,9 @@ def cdist(XA, XB, metric='euclidean', p=2, V=None, VI=None, w=None):
         elif mstr == 'canberra':
             _distance_wrap.cdist_canberra_wrap(_convert_to_double(XA),
                                                _convert_to_double(XB), dm)
+        elif mstr == 'aitchison':
+            _distance_wrap.cdist_aitchison_wrap(_convert_to_double(XA),
+                                                _convert_to_double(XB), dm)
         elif mstr == 'braycurtis':
             _distance_wrap.cdist_bray_curtis_wrap(_convert_to_double(XA),
                                                   _convert_to_double(XB), dm)
@@ -2190,6 +2233,8 @@ def cdist(XA, XB, metric='euclidean', p=2, V=None, VI=None, w=None):
             dm = cdist(XA, XB, lambda u, v: seuclidean(u, v, V))
         elif metric == 'test_sqeuclidean':
             dm = cdist(XA, XB, lambda u, v: sqeuclidean(u, v))
+        elif metric == 'test_aitchison':
+            dm = cdist(XA, XB, aitchison)
         elif metric == 'test_braycurtis':
             dm = cdist(XA, XB, braycurtis)
         elif metric == 'test_mahalanobis':

@@ -48,7 +48,7 @@ from scipy.spatial.distance import (squareform, pdist, cdist, matching,
         jaccard, dice, sokalsneath, rogerstanimoto, russellrao, yule,
         num_obs_y, num_obs_dm, is_valid_dm, is_valid_y, minkowski, wminkowski,
         euclidean, sqeuclidean, cosine, correlation, hamming, mahalanobis,
-        canberra, braycurtis, sokalmichener, _validate_vector)
+        canberra, aitchison, braycurtis, sokalmichener, _validate_vector)
 
 
 _filenames = ["iris.txt",
@@ -286,6 +286,17 @@ class TestCdist(TestCase):
         Y1 = cdist(X1, X2, 'canberra')
         Y2 = cdist(X1, X2, 'test_canberra')
         _assert_within_tol(Y1, Y2, eps, verbose > 2)
+
+    def test_cdist_aitchison_random(self):
+        eps = 1e-07
+        X1 = eo['cdist-X1'] < 0.5
+        X2 = eo['cdist-X2'] < 0.5
+        Y1 = cdist(X1, X2, 'aitchison')
+        Y2 = cdist(X1, X2, 'test_aitchison')
+        if verbose > 2:
+            print(Y1, Y2)
+            print((Y1-Y2).max())
+        _assert_within_tol(Y1, Y2, eps)
 
     def test_cdist_braycurtis_random(self):
         eps = 1e-07
