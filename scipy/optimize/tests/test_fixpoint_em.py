@@ -14,11 +14,6 @@ from scipy.stats import poisson, norm
 from scipy.special import expit, logit
 
 
-def clo(w):
-    "Closure in the jargon of compositional analysis."
-    return w / w.sum()
-
-
 class alr:
     "Additive log ratio transform."
     @classmethod
@@ -27,7 +22,8 @@ class alr:
 
     @classmethod
     def decode(cls, v):
-        return clo(np.concatenate((np.exp(v), [1])))
+        w = np.concatenate((np.exp(v), [1]))
+        return w / w.sum()
 
 
 class PoissonMixUnboundedTransform:
@@ -87,6 +83,22 @@ class PoissonMix:
         p = data.dot(pi) / data.sum()
         mu = (data * counts).dot(pi) / data.dot(pi)
         return transform.encode(p, mu)
+
+    @classmethod
+    def fmerit(cls, data, transform, X, F_X):
+        """
+        This uses the notation in the scipy fixpoint framework.
+
+        The X argument is a (multivariate) parameter estimate,
+        and the iteration function maps X to F_X.  If X is a fixed point
+        of the iteration function then X and F_X will be equal.
+        For EM, the maximum likelihood estimate is a fixed point.
+
+        If X is not the maximum likelihood estimate then the negative log
+        likelihood of F_X will be no greater than that of X.
+
+        """
+        return cls.neg_log_likelihood(data, transform, F_X)
 
 
 class CheckPoissonMix(object):
@@ -178,7 +190,7 @@ class TestVaradhanTable2(CheckVaradhanPoissonMix):
     desired_local_squarem_nfev = 108
 
 
-class TestVaradhanFigure2(CheckVaradhanPoissonMix):
+class TestVaradhan2004Table3(CheckVaradhanPoissonMix):
     initial_p = np.array([0.3, 0.7])
     initial_mu = np.array([1.0, 2.5])
     desired_plain_em_iterations = 2335
