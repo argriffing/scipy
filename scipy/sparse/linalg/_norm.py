@@ -10,9 +10,6 @@ from numpy.core import (
     )
 
 
-def isComplexType(t):
-    return issubclass(t, complexfloating)
-
 def norm(x, ord=None, axis=None):
     """
     Norm of a sparse matrix
@@ -23,7 +20,8 @@ def norm(x, ord=None, axis=None):
     Parameters
     ----------
     x : a sparse matrix
-        Input sparse matrix. If `axis` is None, `x` must be 1-D or 2-D sparse matrix.
+        Input sparse matrix. If `axis` is None, `x` must be 1-D or 2-D
+        sparse matrix.
     ord : {non-zero int, inf, -inf, 'fro'}, optional
         Order of the norm (see table under ``Notes``). inf means numpy's
         `inf` object.
@@ -115,12 +113,10 @@ def norm(x, ord=None, axis=None):
         raise TypeError("input is not sparse. use numpy.linalg.norm")
 
     # Check the default case first and handle it immediately.
-    if ord in [None, 'fro', 'f'] and axis is None:
-        if isComplexType(x.dtype.type):
-            sqnorm = dot(x.real, x.real) + dot(x.imag, x.imag)
-        else:
-            sqnorm = x.power(2).sum()
-        return sqrt(sqnorm)
+    if ord in (None, 'fro', 'f') and axis is None:
+        if np.iscomplexobj(x):
+            x = np.absolute(x)
+        return sqrt(x.power(2).sum())
 
     # Normalize the `axis` argument to a tuple.
     nd = x.ndim
@@ -140,7 +136,7 @@ def norm(x, ord=None, axis=None):
             return abs(x).sum(axis=axis)
         elif ord == -1:
             return min(abs(x).sum(axis=axis))             
-        elif ord is None:            
+        elif ord is None or ord == 2:
             return sqrt(x.power(2).sum(axis=axis))        
         else:
             raise NotImplementedError
@@ -165,10 +161,9 @@ def norm(x, ord=None, axis=None):
             return abs(x).sum(axis=row_axis).min(axis=col_axis)[0,0]
         elif ord == -Inf:
             return abs(x).sum(axis=col_axis).min(axis=row_axis)[0,0]
-        elif ord in [None, 'fro', 'f']:
+        elif ord in ('f', 'fro', None):
             return sqrt(x.power(2).sum(axis=axis))
         else:
             raise ValueError("Invalid norm order for matrices.")
     else:
         raise ValueError("Improper number of dimensions to norm.")
-
