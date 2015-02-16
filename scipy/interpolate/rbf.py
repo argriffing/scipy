@@ -46,13 +46,15 @@ from __future__ import division, print_function, absolute_import
 
 import sys
 
-from numpy import (sqrt, log, asarray, newaxis, all, dot, exp, eye,
-                   float_)
+import numpy as np
+from numpy import sqrt, log, asarray, newaxis, all, dot, exp, eye, float_
 from scipy import linalg
-from scipy._lib.six import callable, get_method_function, \
-     get_function_code
+from scipy._lib.six import callable, get_method_function, get_function_code
 
 __all__ = ['Rbf']
+
+class RbfConditioningError(np.linalg.LinAlgError):
+    pass
 
 
 class Rbf(object):
@@ -114,13 +116,13 @@ class Rbf(object):
         return sqrt(((x1 - x2)**2).sum(axis=0))
 
     def _h_multiquadric(self, r):
-        return sqrt((1.0/self.epsilon*r)**2 + 1)
+        return sqrt((r/self.epsilon)**2 + 1)
 
     def _h_inverse_multiquadric(self, r):
-        return 1.0/sqrt((1.0/self.epsilon*r)**2 + 1)
+        return 1.0/sqrt((r/self.epsilon)**2 + 1)
 
     def _h_gaussian(self, r):
-        return exp(-(1.0/self.epsilon*r)**2)
+        return exp(-(r/self.epsilon)**2)
 
     def _h_linear(self, r):
         return r
@@ -210,7 +212,11 @@ class Rbf(object):
             setattr(self, item, value)
 
         self.A = self._init_function(r) - eye(self.N)*self.smooth
-        self.nodes = linalg.solve(self.A, self.di)
+        try:
+            info = linalg.cho_factor(self.A)
+        except np.linalg.LinAlgError as e:
+            raise RbfConditioningError('more smoothing is required')
+        self.nodes = linalg.cho_solve(info, self.di)
 
     def _call_norm(self, x1, x2):
         if len(x1.shape) == 1:

@@ -87,6 +87,20 @@ def check_rbf1d_regularity(function, atol):
         np.seterr(**olderr)
 
 
+def test_gh_4523():
+    np.random.seed(1234)
+    function = 'gaussian'
+    atol = 1e-2
+    xi = np.linspace(0, 10, 50)
+    z = xi + 4.0 * np.random.randn(len(xi))
+    #rbf = Rbf(xi, z, function=function)
+    rbf = Rbf(xi, z, function=function, epsilon=0.2)
+    print('epsilon:', rbf.epsilon)
+    yi = rbf(xi)
+    msg = "abs-diff: %f" % abs(yi - z).max()
+    assert_(allclose(yi, z, atol=atol), msg)
+
+
 def test_rbf_regularity():
     tolerances = {
         'multiquadric': 0.05,
