@@ -37,11 +37,11 @@ class ProcrustesTests(TestCase):
                               'd') / np.sqrt(4)
 
     def test_procrustes(self):
-        """tests procrustes' ability to match two matrices.
-
-        the second matrix is a rotated, shifted, scaled, and mirrored version
-        of the first, in two dimensions only
-        """
+        # tests procrustes' ability to match two matrices.
+        #
+        # the second matrix is a rotated, shifted, scaled, and mirrored version
+        # of the first, in two dimensions only
+        #
         # can shift, mirror, and scale an 'L'?
         a, b, disparity = procrustes(self.data1, self.data2)
         np.testing.assert_allclose(b, a)
@@ -56,7 +56,7 @@ class ProcrustesTests(TestCase):
         #self.assertTrue(disp13 < 0.5 ** 2)
 
     def test_procrustes2(self):
-        """procrustes disparity should not depend on order of matrices"""
+        # procrustes disparity should not depend on order of matrices
         m1, m3, disp13 = procrustes(self.data1, self.data3)
         m3_2, m1_2, disp31 = procrustes(self.data3, self.data1)
         np.testing.assert_almost_equal(disp13, disp31)

@@ -160,12 +160,8 @@ def _match_points(mtx1, mtx2):
         of mtx 2.  See procrustes docs for details.
 
     """
-    u, s, vh = np.linalg.svd(np.dot(np.transpose(mtx1), mtx2))
-    q = np.dot(np.transpose(vh), np.transpose(u))
-    new_mtx2 = np.dot(mtx2, q)
-    new_mtx2 *= np.sum(s)
-
-    return new_mtx2
+    R, s = orthogonal_procrustes(mtx1, mtx2)
+    return np.dot(mtx2, R.T) * s
 
 
 def _get_disparity(mtx1, mtx2):
