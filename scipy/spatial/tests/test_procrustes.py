@@ -3,7 +3,8 @@ from __future__ import absolute_import, division, print_function
 from unittest import TestCase, main
 
 import numpy as np
-from scipy.spatial.procrustes import procrustes, _center, _normalize
+from scipy.spatial.procrustes import (procrustes, _center, _normalize,
+                                      _get_disparity)
 
 
 class ProcrustesTests(TestCase):
@@ -107,6 +108,20 @@ class ProcrustesTests(TestCase):
         np.testing.assert_equal(np.trace(np.dot(norm_mtx,
                                                 np.transpose(norm_mtx))), 1.)
 
+    def test_get_disparity(self):
+        disp = _get_disparity(self.data1, self.data3)
+        disp2 = _get_disparity(self.data3, self.data1)
+        np.testing.assert_equal(disp, disp2)
+        np.testing.assert_equal(disp, (3. * 2. + (1. + 1.5 ** 2)))
+
+        d1 = np.append(self.data1, self.data1, 0)
+        d3 = np.append(self.data3, self.data3, 0)
+
+        disp3 = _get_disparity(d1, d3)
+        disp4 = _get_disparity(d3, d1)
+        np.testing.assert_equal(disp3, disp4)
+        # 2x points in same configuration should give 2x disparity
+        np.testing.assert_equal(disp3, 2. * disp)
 
 if __name__ == '__main__':
     main()

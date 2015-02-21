@@ -105,21 +105,10 @@ def procrustes(data1, data2):
     mtx1 = _normalize(mtx1)
     mtx2 = _normalize(mtx2)
 
-    # transform mtx2 to minimize disparity (sum((mtx1[i,j] - mtx2[i,j])^2))
-    mtx2, disparity = orthogonal_procrustes(mtx1, mtx2)
+    # transform mtx2 to minimize disparity (sum( (mtx1[i,j] - mtx2[i,j])^2) )
+    mtx2 = _match_points(mtx1, mtx2)
 
-    # When mtx1 and mtx2 can match exactly, orthogonal_procrustes returns a
-    # matrix with:
-    #   |-1 0|
-    #   | 0 1|
-    # Thus we only really need to return mtx1 and a disparity of zero.
-    #
-    # Note: we check for shape first, because if the shape is not equal
-    # np.allclose will raise an error.
-    if mtx2.shape == (2, 2) and np.allclose(np.array([[-1, 0], [0, 1]]), mtx2,
-                                            atol=1e-8):
-        mtx2 = mtx1
-        disparity = 0
+    disparity = _get_disparity(mtx1, mtx2)
 
     return mtx1, mtx2, disparity
 
@@ -146,7 +135,7 @@ def _center(mtx):
 
 
 def _normalize(mtx):
-    """change scaling of data (in rows) such that trace(mtx*mtx') = 1
+    """Change scaling of data (in rows) such that trace(mtx*mtx') = 1
 
     Parameters
     ----------
@@ -160,3 +149,32 @@ def _normalize(mtx):
     """
     mtx = np.asarray(mtx, dtype=float)
     return mtx / np.linalg.norm(mtx)
+
+def _match_points(mtx1, mtx2):
+    """Returns a transformed mtx2 that matches mtx1.
+
+    Returns
+    -------
+    array_like
+        A new matrix which is a transform of mtx2.  Scales and rotates a copy
+        of mtx 2.  See procrustes docs for details.
+
+    """
+    u, s, vh = np.linalg.svd(np.dot(np.transpose(mtx1), mtx2))
+    q = np.dot(np.transpose(vh), np.transpose(u))
+    new_mtx2 = np.dot(mtx2, q)
+    new_mtx2 *= np.sum(s)
+
+    return new_mtx2
+
+
+def _get_disparity(mtx1, mtx2):
+    """Measures the dissimilarity between two data sets
+
+    Returns
+    -------
+
+    M^2 = sum(square(mtx1 - mtx2)), the pointwise sum of squared differences
+
+    """
+    return(np.sum(np.square(mtx1 - mtx2)))
