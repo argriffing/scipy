@@ -4082,6 +4082,47 @@ vonmises = vonmises_gen(name='vonmises')
 vonmises_line = vonmises_gen(a=-np.pi, b=np.pi, name='vonmises_line')
 
 
+class wrapped_normal(rv_continuous):
+    """A wrapped normal continuous random variable.
+
+    %(before_notes)s
+
+    Notes
+    -----
+    If `x` is not in range or `loc` is not in range it assumes they are angles
+    and converts them to [-pi, pi] equivalents.
+
+    The probability density function for `vonmises` is::
+
+        vonmises.pdf(x, kappa) = exp(kappa * cos(x)) / (2*pi*I[0](kappa))
+
+    for ``-pi <= x <= pi``, ``kappa > 0``.
+
+    `vonmises` takes ``kappa`` as a shape parameter.
+
+    See Also
+    --------
+    vonmises_line : The same distribution, defined on a [-pi, pi] segment
+                    of the real line.
+
+    %(example)s
+
+    """
+    def _rvs(self, kappa):
+        return self._random_state.vonmises(0.0, kappa, size=self._size)
+
+    def _pdf(self, x, kappa):
+        return exp(kappa * cos(x)) / (2*pi*special.i0(kappa))
+
+    def _cdf(self, x, kappa):
+        return vonmises_cython.von_mises_cdf(kappa, x)
+
+    def _stats_skip(self, kappa):
+        return 0, None, 0, None
+vonmises = vonmises_gen(name='vonmises')
+vonmises_line = vonmises_gen(a=-np.pi, b=np.pi, name='vonmises_line')
+
+
 class wald_gen(invgauss_gen):
     """A Wald continuous random variable.
 
