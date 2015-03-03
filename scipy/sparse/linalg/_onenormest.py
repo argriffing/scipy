@@ -92,7 +92,7 @@ def onenormest(A, t=2, itmax=5, compute_v=False, compute_w=False):
         w = A_explicit[:, argmax_j]
         est = col_abs_sums[argmax_j]
     else:
-        est, v, w, nmults, nresamples = _onenormest_core(A, A.H, t, itmax)
+        est, v, w, nmults, nresamples = _onenormest_core(A, A.T, t, itmax)
 
     # Report the norm estimate along with some certificates of the estimate.
     if compute_v or compute_w:
