@@ -52,6 +52,7 @@ class _MatrixM1PowerOperator(LinearOperator):
         self._p = p
         self.ndim = A.ndim
         self.shape = A.shape
+        self.dtype = A.dtype
 
     def _matvec(self, x):
         for i in range(self._p):

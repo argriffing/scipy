@@ -92,7 +92,7 @@ def onenormest(A, t=2, itmax=5, compute_v=False, compute_w=False):
         w = A_explicit[:, argmax_j]
         est = col_abs_sums[argmax_j]
     else:
-        est, v, w, nmults, nresamples = _onenormest_core(A, A.T, t, itmax)
+        est, v, w, nmults, nresamples = _onenormest_core(A, A.H, t, itmax)
 
     # Report the norm estimate along with some certificates of the estimate.
     if compute_v or compute_w:
@@ -106,9 +106,27 @@ def onenormest(A, t=2, itmax=5, compute_v=False, compute_w=False):
         return est
 
 
+def _standard_dtype(dtype):
+    if np.issubdtype(dtype, np.complexfloating):
+        return np.complex128
+    else:
+        return np.float64
+
+
 def sign_round_up(X):
-    # differs from numpy sign in the way it handles entries that are zero
-    return np.sign(np.sign(X) + 0.5)
+    """
+    This should do the right thing for both real and complex matrices.
+
+    From Higham and Tisseur:
+    "Everything in this section remains valid for complex matrices
+    provided that sign(A) is redefined as the matrix (aij / |aij|)
+    (and sign(0) = 1) transposes are replaced by conjugate transposes.
+
+    """
+    Y = X.copy()
+    Y[Y == 0] = 1
+    Y /= np.abs(Y)
+    return Y
 
 
 def elementary_vector(n, i):
@@ -156,7 +174,52 @@ def less_than_or_close(a, b):
     return np.allclose(a, b) or (a < b)
 
 
-def _algorithm_2_2(A, AT, t):
+def _create_initial_block(n, t, dtype):
+    """
+    Create a random initial block.
+
+    Parameters
+    ----------
+    n : int
+        The number of rows in the block.
+    t : int
+        The number of columns in the block.
+    dtype : dtype
+        The dtype of the output array.
+
+    Returns
+    -------
+    X : ndarray with shape (n, t)
+        The initial guess.
+    nresamples : int
+        The number of resamples required by the initialization.
+
+    """
+    nresamples = 0
+    # "We now explain our choice of starting matrix.  We take the first
+    # column of X to be the vector of 1s [...] This has the advantage that
+    # for a matrix with nonnegative elements the algorithm converges
+    # with an exact estimate on the second iteration, and such matrices
+    # arise in applications [...]"
+    X = np.ones((n, t), dtype=dtype)
+    # "The remaining columns are chosen as rand{-1,1},
+    # with a check for and correction of parallel columns,
+    # exactly as for S in the body of the algorithm."
+    if t > 1:
+        for i in range(1, t):
+            # These are technically initial samples, not resamples,
+            # so the resampling count is not incremented.
+            resample_column(i, X)
+        for i in range(t):
+            while column_needs_resampling(i, X):
+                resample_column(i, X)
+                nresamples += 1
+    # "Choose starting matrix X with columns of unit 1-norm."
+    X /= float(n)
+    return X, nresamples
+
+
+def _algorithm_2_2(A, AH, t):
     """
     This is Algorithm 2.2.
 
@@ -164,8 +227,8 @@ def _algorithm_2_2(A, AT, t):
     ----------
     A : ndarray or other linear operator
         A linear operator that can produce matrix products.
-    AT : ndarray or other linear operator
-        The transpose of A.
+    AH : ndarray or other linear operator
+        The Hermitian transpose of the linear operator A.
     t : int, optional
         A positive parameter controlling the tradeoff between
         accuracy versus time and memory usage.
@@ -196,14 +259,12 @@ def _algorithm_2_2(A, AT, t):
 
     """
     A_linear_operator = aslinearoperator(A)
-    AT_linear_operator = aslinearoperator(AT)
+    AH_linear_operator = aslinearoperator(AH)
     n = A_linear_operator.shape[0]
 
     # Initialize the X block with columns of unit 1-norm.
-    X = np.ones((n, t))
-    if t > 1:
-        X[:, 1:] = np.random.randint(0, 2, size=(n, t-1))*2 - 1
-    X /= float(n)
+    dtype = _standard_dtype(A.dtype)
+    X, nresamples = _create_initial_block(n, t, dtype)
 
     # Iteratively improve the lower bounds.
     # Track extra things, to assert invariants for debugging.
@@ -217,7 +278,7 @@ def _algorithm_2_2(A, AT, t):
         best_j = np.argmax(g)
         g = sorted(g, reverse=True)
         S = sign_round_up(Y)
-        Z = np.asarray(AT_linear_operator.matmat(S))
+        Z = np.asarray(AH_linear_operator.matmat(S))
         h = np.max(np.abs(Z), axis=1)
 
         # If this algorithm runs for fewer than two iterations,
@@ -258,7 +319,7 @@ def _algorithm_2_2(A, AT, t):
     return g, ind
 
 
-def _onenormest_core(A, AT, t, itmax):
+def _onenormest_core(A, AH, t, itmax):
     """
     Compute a lower bound of the 1-norm of a sparse matrix.
 
@@ -266,8 +327,8 @@ def _onenormest_core(A, AT, t, itmax):
     ----------
     A : ndarray or other linear operator
         A linear operator that can produce matrix products.
-    AT : ndarray or other linear operator
-        The transpose of A.
+    AH : ndarray or other linear operator
+        The Hermitian transpose of the linear operator A.
     t : int, optional
         A positive parameter controlling the tradeoff between
         accuracy versus time and memory usage.
@@ -300,7 +361,7 @@ def _onenormest_core(A, AT, t, itmax):
     # This function is a more or less direct translation
     # of Algorithm 2.4 from the Higham and Tisseur (2000) paper.
     A_linear_operator = aslinearoperator(A)
-    AT_linear_operator = aslinearoperator(AT)
+    AH_linear_operator = aslinearoperator(AH)
     if itmax < 2:
         raise ValueError('at least two iterations are required')
     if t < 1:
@@ -308,34 +369,17 @@ def _onenormest_core(A, AT, t, itmax):
     n = A.shape[0]
     if t >= n:
         raise ValueError('t should be smaller than the order of A')
+    # Use real or complex matrices depending on the input dtype.
+    dtype = _standard_dtype(A.dtype)
     # Track the number of big*small matrix multiplications
     # and the number of resamplings.
+    # "Choose starting matrix X in R^{n \times t} with columns of unit 1-norm."
     nmults = 0
-    nresamples = 0
-    # "We now explain our choice of starting matrix.  We take the first
-    # column of X to be the vector of 1s [...] This has the advantage that
-    # for a matrix with nonnegative elements the algorithm converges
-    # with an exact estimate on the second iteration, and such matrices
-    # arise in applications [...]"
-    X = np.ones((n, t), dtype=float)
-    # "The remaining columns are chosen as rand{-1,1},
-    # with a check for and correction of parallel columns,
-    # exactly as for S in the body of the algorithm."
-    if t > 1:
-        for i in range(1, t):
-            # These are technically initial samples, not resamples,
-            # so the resampling count is not incremented.
-            resample_column(i, X)
-        for i in range(t):
-            while column_needs_resampling(i, X):
-                resample_column(i, X)
-                nresamples += 1
-    # "Choose starting matrix X with columns of unit 1-norm."
-    X /= float(n)
+    X, nresamples = _create_initial_block(n, t, dtype)
     # "indices of used unit vectors e_j"
     ind_hist = set()
     est_old = 0
-    S = np.zeros((n, t), dtype=float)
+    S = np.zeros((n, t), dtype=dtype)
     k = 1
     ind = None
     while True:
@@ -368,7 +412,7 @@ def _onenormest_core(A, AT, t, itmax):
                     resample_column(i, S)
                     nresamples += 1
         # (3)
-        Z = np.asarray(AT_linear_operator.matmat(S))
+        Z = np.asarray(AH_linear_operator.matmat(S))
         nmults += 1
         h = np.max(np.abs(Z), axis=1)
         # (4)
