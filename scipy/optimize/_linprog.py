@@ -197,16 +197,36 @@ def _pivot_row(T, pivcol, phase, tol=1.0E-12):
         The index of the row of the pivot element.  If status is False, row
         will be returned as nan.
     """
+    print('--- _pivot_row ---')
+    print('T:')
+    print(T)
+    print('pivcol:', pivcol)
+    print('phase:', phase)
+
     if phase == 1:
         k = 2
     else:
         k = 1
     ma = np.ma.masked_where(T[:-k, pivcol] <= tol, T[:-k, pivcol], copy=False)
     if ma.count() == 0:
-        return False, np.nan
+        print('returning early...')
+        status = False
+        row = np.nan
+        print('status:', status)
+        print('row:', row)
+        print()
+        return status, row
     mb = np.ma.masked_where(T[:-k, pivcol] <= tol, T[:-k, -1], copy=False)
     q = mb / ma
-    return True, np.ma.where(q == q.min())[0][0]
+    status = True
+    row = np.ma.where(q == q.min())[0][0]
+
+    print('reached the end of the function...')
+    print('status:', status)
+    print('row:', row)
+    print()
+
+    return status, row
 
 
 def _solve_simplex(T, n, basis, maxiter=1000, phase=2, callback=None,
@@ -330,14 +350,18 @@ def _solve_simplex(T, n, basis, maxiter=1000, phase=2, callback=None,
                 complete = True
 
         if callback is not None:
+            callback_kwargs = {"tableau": T,
+                               "phase":phase,
+                               "nit":nit,
+                               "pivot":(pivrow, pivcol),
+                               "basis":basis,
+                               "complete": complete and phase == 2}
+            print('before callback:')
+            print(callback_kwargs)
+            print()
             solution[:] = 0
             solution[basis[:m]] = T[:m, -1]
-            callback(solution[:n], **{"tableau": T,
-                                      "phase":phase,
-                                      "nit":nit,
-                                      "pivot":(pivrow, pivcol),
-                                      "basis":basis,
-                                      "complete": complete and phase == 2})
+            callback(solution[:n], **callback_kwargs)
 
         if not complete:
             if nit >= maxiter:
@@ -354,6 +378,13 @@ def _solve_simplex(T, n, basis, maxiter=1000, phase=2, callback=None,
                     if irow != pivrow:
                         T[irow, :] = T[irow, :] - T[pivrow, :]*T[irow, pivcol]
                 nit += 1
+
+    print('_solve_simplex status at the end of the function:')
+    print('phase:', phase)
+    print('complete:', complete)
+    print('nit:', nit)
+    print('status:', status)
+    print()
 
     return nit, status
 
