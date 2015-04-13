@@ -12,7 +12,7 @@ from scipy import special
 from scipy import optimize
 from scipy import integrate
 from scipy.special import (gammaln as gamln, gamma as gam, boxcox, boxcox1p,
-                           inv_boxcox, inv_boxcox1p, erfc)
+                           inv_boxcox, inv_boxcox1p, erfc, poch)
 
 from numpy import (where, arange, putmask, ravel, sum, shape,
                    log, sqrt, exp, arctanh, tan, sin, arcsin, arctan,
@@ -2039,7 +2039,7 @@ class gengamma_gen(rv_continuous):
         return where(cond > 0, val1**ic, val2**ic)
 
     def _munp(self, n, a, c):
-        return special.gamma(a+n*1.0/c) / special.gamma(a)
+        return poch(a, n/c)
 
     def _entropy(self, a, c):
         val = special.psi(a)
