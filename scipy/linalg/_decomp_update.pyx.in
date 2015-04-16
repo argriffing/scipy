@@ -183,14 +183,15 @@ cdef inline void gemv(char* trans, int m, int n, blas_t alpha, blas_t* a,
                 &beta, y, &incy)
     {{endfor}}
 
-cdef inline void gemm(char* transa, char* transb, int m, int n, int k,
+cdef inline int gemm(char* transa, char* transb, int m, int n, int k,
         blas_t alpha, blas_t* a, int lda, blas_t* b, int ldb, blas_t beta,
-        blas_t* c, int ldc) nogil:
+        blas_t* c, int ldc) nogil except -1:
     {{for COND, CNAME, C in zip(CONDS, CNAMES, PREFIX)}}
     {{COND}} blas_t is {{CNAME}}:
         blas_pointers.{{C}}gemm(transa, transb, &m, &n, &k, &alpha, a, &lda,
                 b, &ldb, &beta, c, &ldc)
     {{endfor}}
+    return 0
 
 cdef inline void trmm(char* side, char* uplo, char* transa, char* diag, int m,
         int n, blas_t alpha, blas_t* a, int lda, blas_t* b, int ldb) nogil:
