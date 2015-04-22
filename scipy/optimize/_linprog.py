@@ -163,11 +163,30 @@ def _pivot_col(T, tol=1.0E-12, bland=False):
         If status is False, col will be returned as nan.
     """
     ma = np.ma.masked_where(T[-1, :-1] >= -tol, T[-1, :-1], copy=False)
+    #print('tableau for column pivoting:')
+    #print(T)
+    #print('masked array for column pivoting:')
+    #print(ma)
     if ma.count() == 0:
-        return False, np.nan
-    if bland:
-        return True, np.where(ma.mask == False)[0][0]
-    return True, np.ma.where(ma == ma.min())[0][0]
+        status = False
+        col = np.nan
+    elif bland:
+        status = True
+        m = np.where(ma.mask == False)
+        #print('matrix from which to get the [0][0] entry for pivoting:')
+        #print(m)
+        col = m[0][0]
+    else:
+        status = True
+        m = np.ma.where(ma == ma.min())
+        #print('matrix from which to get the [0][0] entry for pivoting:')
+        #print(m)
+        col = m[0][0]
+    #print('pivot col:')
+    #print('status:', status)
+    #print('col:', col)
+    #print()
+    return status, col
 
 
 def _pivot_row(T, pivcol, phase, tol=1.0E-12):
@@ -205,6 +224,12 @@ def _pivot_row(T, pivcol, phase, tol=1.0E-12):
     if ma.count() == 0:
         return False, np.nan
     mb = np.ma.masked_where(T[:-k, pivcol] <= tol, T[:-k, -1], copy=False)
+    #print('preparing to divide...')
+    #print('mb:')
+    #print(mb)
+    #print('ma:')
+    #print(ma)
+    #print()
     q = mb / ma
     return True, np.ma.where(q == q.min())[0][0]
 
@@ -314,6 +339,48 @@ def _solve_simplex(T, n, basis, maxiter=1000, phase=2, callback=None,
     else:
         raise ValueError("Argument 'phase' to _solve_simplex must be 1 or 2")
 
+    # This part added by Andreea-G in
+    # https://github.com/scipy/scipy/pull/4762
+    if phase == 2:
+            # Check if any artificial variables are still in the basis.
+            # If yes, check if any coefficients from this row and a column
+            # corresponding to one of the non-artificial variable is non-zero.
+            # If found, pivot at this term. If not, start phase 2.
+            # Do this for all artificial variables in the basis.
+            # Ref: "An Introduction to Linear Programming and Game Theory"
+            # by Paul R. Thie, Gerard E. Keough, 3rd Ed,
+            # Chapter 3.7 Redundant Systems (pag 201)
+            print('basis before removing artificial variables:', basis)
+            badrows = [row for row in range(basis.size)
+                    if basis[row] > T.shape[1] - 2]
+            print('bad rows:', badrows)
+            print('T:')
+            print(T)
+            for pivrow in badrows:
+                non_zero_row = [col for col in range(T.shape[1] - 1)
+                                if T[pivrow, col] != 0]
+                if len(non_zero_row) > 0:
+                    pivcol = non_zero_row[0]
+                    # variable represented by pivcol enters
+                    # variable in basis[pivrow] leaves
+                    basis[pivrow] = pivcol
+                    pivval = T[pivrow][pivcol]
+                    T[pivrow, :] = T[pivrow, :] / pivval
+                    for irow in range(T.shape[0]):
+                        if irow != pivrow:
+                            T[irow, :] = T[irow, :] - T[pivrow, :]*T[irow, pivcol]
+                    nit += 1
+
+    # This part added by Andreea-G in
+    # https://github.com/scipy/scipy/pull/4685
+    """
+    if len(basis[:m]) == 0:
+        solution = np.zeros(T.shape[1] - 1, dtype=np.float64)
+    else:
+        solution = np.zeros(max(T.shape[1] - 1, max(basis[:m]) + 1),
+                dtype=np.float64)
+    """
+
     while not complete:
         # Find the pivot column
         pivcol_found, pivcol = _pivot_col(T, tol, bland)
@@ -349,10 +416,13 @@ def _solve_simplex(T, n, basis, maxiter=1000, phase=2, callback=None,
                 # variable in basis[pivrow] leaves
                 basis[pivrow] = pivcol
                 pivval = T[pivrow][pivcol]
+                #print('pivval:', pivval)
                 T[pivrow, :] = T[pivrow, :] / pivval
                 for irow in range(T.shape[0]):
                     if irow != pivrow:
-                        T[irow, :] = T[irow, :] - T[pivrow, :]*T[irow, pivcol]
+                        diff = T[irow, :] - T[pivrow, :]*T[irow, pivcol]
+                        #print('diff:', diff)
+                        T[irow, :] = diff
                 nit += 1
 
     return nit, status
@@ -732,13 +802,50 @@ def _linprog_simplex(c, A_ub=None, b_ub=None, A_eq=None, b_eq=None,
     nit1, status = _solve_simplex(T, n, basis, phase=1, callback=callback,
                                   maxiter=maxiter, tol=tol, bland=bland)
 
-    # if pseudo objective is zero, remove the last row from the tableau and
-    # proceed to phase 2
+    # ***
+    # This gives the tableau after solving the phase 1 simplex problem.
+
+    #print('*** after having solved phase 1 simplex problem ***')
+    #print('T.shape:', T.shape)
+    #print('T:')
+    #print(T)
+    #print('basis:')
+    #print(basis)
+    #print('n:', n)
+    #print('n_slack:', n_slack)
+    #print('n_artificial:', n_artificial)
+    #print()
+
+    # ***
+
+
     if abs(T[-1, -1]) < tol:
         # Remove the pseudo-objective row from the tableau
         T = T[:-1, :]
         # Remove the artificial variable columns from the tableau
         T = np.delete(T, np.s_[n+n_slack:n+n_slack+n_artificial], 1)
+
+        """
+        # Add rows corresponding to artificial variable constraints.
+        # These constraints force the artificial variables to have value zero.
+        artificial_constraints = np.zeros((n_artificial, T.shape[1]))
+        for i in range(n_artificial):
+            artificial_constraints[i, n+n_slack+i] = 1
+        #print('artificial_constraints:')
+        #print(artificial_constraints)
+        T = np.vstack((T[:-1], artificial_constraints, T[-1:]))
+        # Remove the contribution of artificial vars towards objective.
+        for i in range(n_artificial):
+            T[-1, i] = 0
+        # Add to the constraint count.
+        #m = m + n_artificial
+        # Update the basis, keeping in mind that basis[i] contains the column
+        # corresponding to the basic variable for row i.
+        #basis = np.concatenate((basis, np.zeros(n_artificial)))
+        #for i in range(n_artificial):
+            #basis[n+n_slack+i] = n+n_slack+i
+        #print('new T shape:', T.shape)
+        """
     else:
         # Failure to find a feasible starting point
         status = 2
