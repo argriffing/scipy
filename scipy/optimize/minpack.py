@@ -9,6 +9,7 @@ from numpy import (atleast_1d, dot, take, triu, shape, eye,
                    all, where, isscalar, asarray, inf, abs,
                    finfo, inexact, issubdtype, dtype)
 from .optimize import OptimizeResult, _check_unknown_options, OptimizeWarning
+from scipy._lib._util import _asarray_validated
 
 error = _minpack.error
 
@@ -364,7 +365,7 @@ def leastsq(func, x0, args=(), Dfun=None, full_output=0,
          params
 
     """
-    x0 = asarray(x0).flatten()
+    x0 = _asarray_validated(x0).flatten()
     n = len(x0)
     if not isinstance(args, tuple):
         args = (args,)

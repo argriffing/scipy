@@ -274,6 +274,12 @@ class TestLeastSq(TestCase):
         assert_(success in [1,2,3,4])
         assert_((func(p1,x,y)**2).sum() < 1e-4 * (func(p0,x,y)**2).sum())
 
+    def test_invalid_guess(self):
+        # Regression test for gh-4777
+        def func(x):
+            return np.hstack((np.inf, x))
+        optimize.leastsq(f, [3, 3])
+
 
 class TestCurveFit(TestCase):
     def setUp(self):
