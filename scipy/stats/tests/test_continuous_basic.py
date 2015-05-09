@@ -66,9 +66,10 @@ distcont_extra = [
 
 distmissing = ['wald', 'gausshyper', 'genexpon', 'rv_continuous',
     'loglaplace', 'rdist', 'semicircular', 'invweibull', 'ksone',
-    'cosine', 'kstwobign', 'truncnorm', 'mielke', 'recipinvgauss', 'levy',
+    'cosine', 'kstwobign', 'mielke', 'recipinvgauss', 'levy',
     'johnsonsu', 'levy_l', 'powernorm', 'wrapcauchy',
-    'johnsonsb', 'truncexpon', 'invgauss', 'invgamma',
+    'johnsonsb', 'invgauss', 'invgamma',
+    'truncnorm', 'truncexpon', 'truncgamma',
     'powerlognorm']
 
 distmiss = [[dist,args] for dist,args in distcont if dist in distmissing]

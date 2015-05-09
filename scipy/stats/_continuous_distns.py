@@ -814,10 +814,10 @@ class chi2_gen(rv_continuous):
         return self._random_state.chisquare(df, self._size)
 
     def _pdf(self, x, df):
-        return exp(self._logpdf(x, df))
+        return _gamma_pdf(x/2, df/2)
 
     def _logpdf(self, x, df):
-        return special.xlogy(df/2.-1, x) - x/2. - gamln(df/2.) - (log(2)*df)/2.
+        return _gamma_logpdf(x/2, df/2)
 
     def _cdf(self, x, df):
         return special.chdtr(df, x)
@@ -829,7 +829,7 @@ class chi2_gen(rv_continuous):
         return special.chdtri(df, p)
 
     def _ppf(self, p, df):
-        return self._isf(1.0-p, df)
+        return _gamma_ppf(p, df/2) * 2
 
     def _stats(self, df):
         mu = df
@@ -1823,6 +1823,48 @@ def _digammainv(y):
 ## gamma(1, loc, scale)  is the Exponential distribution
 ## gamma(df/2, 0, 2) is the chi2 distribution with df degrees of freedom.
 
+# Define standard gamma functions.
+
+def _gamma_logpdf(x, a):
+    def f(x, a):
+        return special.xlogy(a - 1.0, x) - x - gamln(a)
+    return _lazywhere(x < np.inf, (x, a), f, -np.inf)
+
+
+def _gamma_pdf(x, a):
+    return exp(_gamma_logpdf(x, a))
+
+
+def _gamma_cdf(x, a):
+    def f(x, a):
+        return special.gammainc(a, x)
+    return _lazywhere(x < np.inf, (x, a), f, 1.0)
+
+
+def _gamma_logcdf(x, a):
+    return log(_gamma_cdf(x, a))
+
+
+def _gamma_ppf(q, a):
+    return special.gammaincinv(a, q)
+
+
+def _gamma_sf(x, a):
+    return special.gammaincc(a, x)
+
+
+def _gamma_logsf(x, a):
+    return log(_gamma_sf)
+
+
+def _gamma_isf(q, a):
+    return special.gammainccinv(a, q)
+
+
+def _gamma_stats(a):
+    return a, a, 2.0/sqrt(a), 6.0/a
+
+
 class gamma_gen(rv_continuous):
     """A gamma continuous random variable.
 
@@ -1854,22 +1896,31 @@ class gamma_gen(rv_continuous):
         return self._random_state.standard_gamma(a, self._size)
 
     def _pdf(self, x, a):
-        return exp(self._logpdf(x, a))
+        return _gamma_pdf(x, a)
 
     def _logpdf(self, x, a):
-        return special.xlogy(a-1.0, x) - x - gamln(a)
+        return _gamma_logpdf(x, a)
 
     def _cdf(self, x, a):
-        return special.gammainc(a, x)
+        return _gamma_pdf(x, a)
 
-    def _sf(self, x, a):
-        return special.gammaincc(a, x)
+    def _logcdf(self, x, a):
+        return _gamma_logcdf(x, a)
 
     def _ppf(self, q, a):
-        return special.gammaincinv(a, q)
+        return _gamma_ppf(q, a)
+
+    def _sf(self, x, a):
+        return _gamma_sf(x, a)
+
+    def _logsf(self, x, a):
+        return _gamma_logsf(x, a)
+
+    def _isf(self, q, a):
+        return _gamma_isf(q, a)
 
     def _stats(self, a):
-        return a, a, 2.0/sqrt(a), 6.0/a
+        return _gamma_stats(a)
 
     def _entropy(self, a):
         return special.psi(a)*(1-a) + a + gamln(a)
@@ -4145,6 +4196,64 @@ class truncexpon_gen(rv_continuous):
         eB = exp(b)
         return log(eB-1)+(1+eB*(b-1.0))/(1.0-eB)
 truncexpon = truncexpon_gen(a=0.0, name='truncexpon')
+
+
+class truncgamma_gen(rv_continuous):
+    """A truncated gamma continuous random variable.
+
+    %(before_notes)s
+
+    See Also
+    --------
+    gamma, truncnorm
+
+    Notes
+    -----
+    The standard form of this distribution is a gamma distribution with shape
+    parameter ``alpha``, truncated to the range [a, b] --- notice that
+    a and b are defined over the domain of the gamma distribution.
+
+    `truncgamma` takes ``alpha``, ``a``, and ``b`` as shape parameters.
+
+    %(after_notes)s
+
+    %(example)s
+
+    """
+    def _argcheck(self, alpha, a, b):
+        self.a = a
+        self.b = b
+        self._nb = _gamma_cdf(b, alpha)
+        self._na = _gamma_cdf(a, alpha)
+        self._delta = self._nb - self._na
+        self._logdelta = log(self._delta)
+        return (a != b)
+
+    def _pdf(self, x, alpha, a, b):
+        return _gamma_pdf(x, alpha) / self._delta
+
+    def _logpdf(self, x, alpha, a, b):
+        return _gamma_logpdf(x, alpha) - self._logdelta
+
+    def _cdf(self, x, alpha, a, b):
+        return (_gamma_cdf(x, alpha) - self._na) / self._delta
+
+    def _ppf(self, q, alpha, a, b):
+        return _gamma_ppf(q*self._nb + self._na*(1.0-q), alpha)
+
+    def _stats(self, alpha, a, b):
+        # Properties of Doubly-Truncated Gamma Variables.
+        # Coffey and Muller (2000).
+        moments = []
+        base_stats = _gamma_stats(alpha)
+        # the recursion in dlmf 8.8.5 could be helpful
+        for m, base in zip((1, 2, 3, 4), base_stats):
+            ca = _gamma_cdf(a, alpha + m)
+            cb = _gamma_cdf(b, alpha + m)
+            moment = ((cb - ca) / self._delta) * base
+            moments.append(moment)
+        return tuple(moments)
+truncgamma = truncgamma_gen(name='truncgamma')
 
 
 class truncnorm_gen(rv_continuous):
