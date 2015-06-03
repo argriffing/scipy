@@ -582,7 +582,7 @@ def expm(A):
     return _expm(A, use_exact_onenorm='auto')
 
 
-def _expm(A, use_exact_onenorm):
+def _expm(A, use_exact_onenorm, ell_function=None):
     # Core of expm, separated to allow testing exact and approximate
     # algorithms.
 
@@ -603,33 +603,57 @@ def _expm(A, use_exact_onenorm):
     h = _ExpmPadeHelper(
             A, structure=structure, use_exact_onenorm=use_exact_onenorm)
 
+    state = -1
+    if ell_function is None:
+        ell_function = _ell
+
     # Try Pade order 3.
     eta_1 = max(h.d4_loose, h.d6_loose)
-    if eta_1 < 1.495585217958292e-002 and _ell(h.A, 3) == 0:
-        U, V = h.pade3()
-        return _solve_P_Q(U, V, structure=structure)
+    if eta_1 < 1.495585217958292e-002:
+        if ell_function(h.A, 3) == 0:
+            U, V = h.pade3()
+            X = _solve_P_Q(U, V, structure=structure)
+            return X, state
+        else:
+            state = 0
 
     # Try Pade order 5.
     eta_2 = max(h.d4_tight, h.d6_loose)
-    if eta_2 < 2.539398330063230e-001 and _ell(h.A, 5) == 0:
-        U, V = h.pade5()
-        return _solve_P_Q(U, V, structure=structure)
+    if eta_2 < 2.539398330063230e-001:
+        if ell_function(h.A, 5) == 0:
+            U, V = h.pade5()
+            X = _solve_P_Q(U, V, structure=structure)
+            return X, state
+        else:
+            state = 1
 
     # Try Pade orders 7 and 9.
     eta_3 = max(h.d6_tight, h.d8_loose)
-    if eta_3 < 9.504178996162932e-001 and _ell(h.A, 7) == 0:
-        U, V = h.pade7()
-        return _solve_P_Q(U, V, structure=structure)
-    if eta_3 < 2.097847961257068e+000 and _ell(h.A, 9) == 0:
-        U, V = h.pade9()
-        return _solve_P_Q(U, V, structure=structure)
+    if eta_3 < 9.504178996162932e-001:
+        if ell_function(h.A, 7) == 0:
+            U, V = h.pade7()
+            X =  _solve_P_Q(U, V, structure=structure)
+            return X, state
+        else:
+            state = 2
+    if eta_3 < 2.097847961257068e+000:
+        if ell_function(h.A, 9) == 0:
+            U, V = h.pade9()
+            X = _solve_P_Q(U, V, structure=structure)
+            return X, state
+        else:
+            state = 3
 
     # Use Pade order 13.
     eta_4 = max(h.d8_loose, h.d10_loose)
     eta_5 = min(eta_3, eta_4)
     theta_13 = 4.25
     s = max(int(np.ceil(np.log2(eta_5 / theta_13))), 0)
-    s = s + _ell(2**-s * h.A, 13)
+    extra_s = ell_function(2**-s * h.A, 13)
+    if extra_s == 0:
+        s = s + extra_s
+    else:
+        state = 5
     U, V = h.pade13_scaled(s)
     X = _solve_P_Q(U, V, structure=structure)
     if structure == UPPER_TRIANGULAR:
@@ -639,7 +663,7 @@ def _expm(A, use_exact_onenorm):
         # X = r_13(A)^(2^s) by repeated squaring.
         for i in range(s):
             X = X.dot(X)
-    return X
+    return X, state
 
 
 def _solve_P_Q(U, V, structure=None):
@@ -817,6 +841,6 @@ def _ell(A, m):
         return 0
 
     alpha = A_abs_onenorm / (_onenorm(A) * abs_c_recip)
-    log2_alpha_div_u = np.log2(alpha/u)
+    log2_alpha_div_u = np.log2(alpha) - np.log2(u)
     value = int(np.ceil(log2_alpha_div_u / (2 * m)))
     return max(value, 0)
