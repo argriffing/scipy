@@ -341,18 +341,16 @@ def hadamard(n, dtype=int):
     # This function is a slightly modified version of the
     # function contributed by Ivo in ticket #675.
 
-    if n < 1:
-        lg2 = 0
-    else:
-        lg2 = int(math.log(n, 2))
-    if 2 ** lg2 != n:
+    n = int(n)
+    lg2 = n.bit_length() - 1
+    if n < 1 or 1 << lg2 != n:
         raise ValueError("n must be an positive integer, and n must be "
                          "a power of 2")
 
     H = np.array([[1]], dtype=dtype)
 
     # Sylvester's construction
-    for i in range(0, lg2):
+    for i in range(lg2):
         H = np.vstack((np.hstack((H, H)), np.hstack((H, -H))))
 
     return H
