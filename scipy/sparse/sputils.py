@@ -15,9 +15,16 @@ from scipy._lib._version import NumpyVersion
 #supported_dtypes = ['bool', 'int8', 'uint8', 'int16', 'uint16', 'int32', 'uint32',
 #        'int64', 'uint64', 'float32', 'float64',
 #        'complex64', 'complex128']
-supported_dtypes = ['bool', 'int8','uint8','short','ushort','intc','uintc',
-        'longlong','ulonglong','single','double','longdouble',
-        'csingle','cdouble','clongdouble']
+#supported_dtypes = ['bool', 'int8','uint8','short','ushort','intc','uintc',
+        #'longlong','ulonglong','single','double','longdouble',
+        #'csingle','cdouble','clongdouble']
+supported_dtypes = ['bool', 'byte', 'ubyte', 'short', 'ushort',
+        'int', 'uint', 'intc', 'uintc', 'longlong', 'ulonglong',
+        'float', 'double', 'longdouble', 'cfloat', 'cdouble', 'clongdouble',
+        ]
+        #'int8', 'uint8', 'int16', 'uint16', 'int32', 'uint32',
+        #'int64', 'uint64']
+
 supported_dtypes = [np.typeDict[x] for x in supported_dtypes]
 
 _upcast_memo = {}
