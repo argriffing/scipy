@@ -162,12 +162,19 @@ def _pivot_col(T, tol=1.0E-12, bland=False):
         The index of the column of the pivot element.
         If status is False, col will be returned as nan.
     """
-    ma = np.ma.masked_where(T[-1, :-1] >= -tol, T[-1, :-1], copy=False)
+    U = T[-1, :-1]
+    print('U in _pivot_col:')
+    print(U)
+    ma = np.ma.masked_where(U >= -tol, T[-1, :-1], copy=False)
     if ma.count() == 0:
         return False, np.nan
     if bland:
-        return True, np.where(ma.mask == False)[0][0]
-    return True, np.ma.where(ma == ma.min())[0][0]
+        Q = np.ma.where(ma.mask == False)
+    else:
+        Q = np.ma.where(ma == ma.min())
+    print('Q in _pivot_col:')
+    print(Q)
+    return True, Q[0][0]
 
 
 def _pivot_row(T, pivcol, phase, tol=1.0E-12):
@@ -201,12 +208,36 @@ def _pivot_row(T, pivcol, phase, tol=1.0E-12):
         k = 2
     else:
         k = 1
-    ma = np.ma.masked_where(T[:-k, pivcol] <= tol, T[:-k, pivcol], copy=False)
+    U = T[:-k, pivcol]
+    print('U in _pivot_row:')
+    print(U)
+    ma = np.ma.masked_where(U <= tol, T[:-k, pivcol], copy=False)
+    print('ma in _pivot_row (the denom, return False if all masked):')
+    print(ma)
     if ma.count() == 0:
         return False, np.nan
-    mb = np.ma.masked_where(T[:-k, pivcol] <= tol, T[:-k, -1], copy=False)
+    mb = np.ma.masked_where(U <= tol, T[:-k, -1], copy=False)
+    print('mb in _pivot_row (the numerator of q):')
+    print(mb)
     q = mb / ma
-    return True, np.ma.where(q == q.min())[0][0]
+    print('q in _pivot_row:')
+    print(q)
+    Q = np.ma.where(q == q.min())[0]
+    print('Q in _pivot_row:')
+    print(Q)
+    """
+    if len(Q) > 1:
+        print('breaking ties in Q by choosing maximum denominator')
+        mbq = np.ma.masked_where(q > q.min(), T[:-k, pivcol])
+        print('T[:-k, pivcol] and mb and mbq:')
+        print(T[:-k, pivcol])
+        print(mb)
+        print(mbq)
+        Q = np.ma.where(mbq == mbq.max())[0]
+        print('tiebreak Q in _pivot_row:')
+        print(Q)
+    """
+    return True, Q[0]
 
 
 def _solve_simplex(T, n, basis, maxiter=1000, phase=2, callback=None,
@@ -303,6 +334,8 @@ def _solve_simplex(T, n, basis, maxiter=1000, phase=2, callback=None,
 
         See `OptimizeResult` for a description of other attributes.
     """
+    pivot_tol = tol
+
     nit = nit0
     complete = False
 
@@ -332,6 +365,7 @@ def _solve_simplex(T, n, basis, maxiter=1000, phase=2, callback=None,
                 # variable in basis[pivrow] leaves
                 basis[pivrow] = pivcol
                 pivval = T[pivrow][pivcol]
+                print('(phase, nit, pivval):', (phase, nit, pivval))
                 T[pivrow, :] = T[pivrow, :] / pivval
                 for irow in range(T.shape[0]):
                     if irow != pivrow:
@@ -346,7 +380,7 @@ def _solve_simplex(T, n, basis, maxiter=1000, phase=2, callback=None,
 
     while not complete:
         # Find the pivot column
-        pivcol_found, pivcol = _pivot_col(T, tol, bland)
+        pivcol_found, pivcol = _pivot_col(T, pivot_tol, bland)
         if not pivcol_found:
             pivcol = np.nan
             pivrow = np.nan
@@ -354,7 +388,7 @@ def _solve_simplex(T, n, basis, maxiter=1000, phase=2, callback=None,
             complete = True
         else:
             # Find the pivot row
-            pivrow_found, pivrow = _pivot_row(T, pivcol, phase, tol)
+            pivrow_found, pivrow = _pivot_row(T, pivcol, phase, pivot_tol)
             if not pivrow_found:
                 status = 3
                 complete = True
@@ -379,6 +413,7 @@ def _solve_simplex(T, n, basis, maxiter=1000, phase=2, callback=None,
                 # variable in basis[pivrow] leaves
                 basis[pivrow] = pivcol
                 pivval = T[pivrow][pivcol]
+                print('(phase, nit, pivval):', (phase, nit, pivval))
                 T[pivrow, :] = T[pivrow, :] / pivval
                 for irow in range(T.shape[0]):
                     if irow != pivrow:
