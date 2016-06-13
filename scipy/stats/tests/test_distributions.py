@@ -224,6 +224,16 @@ class TestBernoulli(TestCase):
         assert_equal(h, 0.0)
 
 
+class TestFisk(TestCase):
+
+    def test_sf_isf(self):
+        x = np.linspace(2, 100)
+        c = 8
+        y = stats.fisk.sf(x, c)
+        xx = stats.fisk.isf(y, c)
+        assert_allclose(x, xx)
+
+
 class TestBradford(TestCase):
     # gh-6216
     def test_cdf_ppf(self):
