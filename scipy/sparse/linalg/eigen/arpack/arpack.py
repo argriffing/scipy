@@ -1639,7 +1639,7 @@ def _herm(x):
     return x.T.conj()
 
 
-def svds(A, k=6, ncv=None, tol=0, which='LM', v0=None,
+def old_svds(A, k=6, ncv=None, tol=0, which='LM', v0=None,
          maxiter=None, return_singular_vectors=True):
     """Compute the largest k singular values/vectors for a sparse matrix.
 
@@ -1807,3 +1807,150 @@ def svds(A, k=6, ncv=None, tol=0, which='LM', v0=None,
         raise ValueError("which must be either 'LM' or 'SM'.")
 
     return u, s, vh
+
+
+def svds(A, k=6, which='LM', ncv=None, tol=0, v0=None, maxiter=None, return_singular_vectors=True):
+    """
+    Compute the largest k singular values/vectors for a sparse matrix.
+    Parameters
+    ----------
+    A : {sparse matrix, LinearOperator}
+            Array to compute the SVD on, of shape (m, n)
+    k : int, optional
+            Number of singular values and vectors to compute.
+    ncv : int, optional
+            The number of Lanczos vectors generated
+            ncv must be greater than 2*k+2 and smaller than m + n;
+            it is recommended that ncv > 2*k
+            Default: ``min(m+n, 4*k + 2)``
+    tol : float, optional
+            Tolerance for singular values. Zero (default) means machine precision.
+    which : str, ['LM' | 'SM'], optional
+        Which `k` singular values to find:
+
+            - 'LM' : largest singular values
+            - 'SM' : smallest singular values
+
+        .. versionadded:: 0.12.0
+    v0 : ndarray, optional
+        Starting vector for iteration, of length min(A.shape). Should be an
+        (approximate) left singular vector if N > M and a right singular
+        vector otherwise.
+        Default: random
+
+        .. versionadded:: 0.12.0
+    maxiter : int, optional
+        Maximum number of iterations.
+
+        .. versionadded:: 0.12.0
+    return_singular_vectors : bool or str, optional
+        - True: return singular vectors (True) in addition to singular values.
+
+        .. versionadded:: 0.12.0
+
+        - "u": only return the u matrix, without computing vh (if N > M).
+        - "vh": only return the vh matrix, without computing u (if N <= M).
+
+        .. versionadded:: 0.16.0
+
+    Returns
+    -------
+    u : ndarray, shape=(m, k)
+            Unitary matrix having left singular vectors as columns.
+    s : ndarray, shape=(k,)
+            The singular values.
+    vt : ndarray, shape=(k, n)
+            Unitary matrix having right singular vectors as rows.
+    Notes
+    -----
+    This is a naive implementation using ARPACK as an eigensolver
+    on [0 A; A' 0]
+
+    """
+    if which not in ('LM', 'SM'):
+        raise ValueError("'which' must be either 'LM' or 'SM'.")
+
+    if not isinstance(A, LinearOperator):
+        A = aslinearoperator(A)
+
+    m, n = A.shape
+
+    if k <= 0 or k >= min(n, m):
+        raise ValueError("k must be between 1 and min(A.shape), k=%d" % k)
+
+    if v0 is not None:
+        v0 = np.concatenate((v0, v0))
+        print('v0:', v0)
+        print(v0.strides)
+
+    # Ignore the v0 passed by the user.
+    # It only worked for svd of square matrices.
+    v0 = None
+
+    # This is specified by the docs, but it fails a scipy test.
+    """
+    if ncv is not None:
+        if not (ncv > 2 * k + 2 and ncv < m + n):
+            raise ValueError("ncv must be greater than 2*k+2 and smaller "
+                             "than m + n. (ncv=%d k=%d m=%d n=%d)" % (
+                             ncv, k, m, n))
+    """
+
+    # Define cyclic matrix operator [0 A; A' 0]
+    def matvec(x):
+        try:
+            result = np.concatenate((A.matvec(x[m:]), A.rmatvec(x[:m])))
+        except:
+            print(type(A))
+            raise
+        else:
+            return result
+
+    C = LinearOperator(shape=(m + n, m + n), matvec=matvec, dtype=A.dtype,
+                       rmatvec=matvec)
+
+    if not return_singular_vectors:
+        eigvals = eigsh(C, k=2 * k, which=which, tol=tol,
+                        maxiter=maxiter, ncv=ncv, v0=v0,
+                        return_eigenvectors=return_singular_vectors)
+        order = np.argsort(eigvals)[k:]
+        return eigvals[order]
+
+    eigvals, eigvecs = eigsh(C, k=2 * k, which=which, tol=tol,
+                             maxiter=maxiter, ncv=ncv, v0=v0,
+                             return_eigenvectors=return_singular_vectors)
+
+    # Use the small eigenvalue detection from pinvh.
+    t = eigvals.dtype.char.lower()
+    factor = {'f': 1E3, 'd': 1E6}
+    cond = factor[t] * np.finfo(t).eps
+    cutoff = cond * np.max(np.absolute(eigvals))
+
+    # Compute a lower bound on the numerical rank of A.
+    # If it's smaller than m or n then use it to help pad the vectors.
+    print('m:', m, 'n:', n, 'k:', k)
+
+    print('eigvals before:', eigvals)
+
+    order = np.argsort(eigvals)[k:]
+    eigvals = eigvals[order]
+    print('eigvals after:', eigvals)
+    #if r < k:
+        #eigvals = np.concatenate((eigvals, np.zeros(k - r)))
+    u = eigvecs[:m, order] * np.sqrt(2)
+    v = eigvecs[m:, order] * np.sqrt(2)
+    vh = _herm(v)
+
+    """
+    if which == 'LM':
+        if r < k:
+            u = _augmented_orthonormal_cols(u, k - r)
+            vh = _augmented_orthonormal_rows(vh, k - r)
+    """
+
+    if return_singular_vectors == 'u' and n > m:
+        vh = None
+    elif return_singular_vectors == 'vh' and n <= m:
+        u = None
+
+    return u, eigvals, vh

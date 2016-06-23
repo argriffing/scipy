@@ -684,6 +684,7 @@ def test_svd_LM_ones_matrix():
     k = 3
     for n, m in (6, 5), (5, 5), (5, 6):
         for t in float, complex:
+            print(t, n, m)
             A = np.ones((n, m), dtype=t)
             U, s, VH = svds(A, k)
 
